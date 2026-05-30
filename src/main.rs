@@ -35,6 +35,10 @@ fn language_for_ext(ext: &str) -> Option<(Language, &'static str)> {
       tree_sitter_yaml::LANGUAGE.into(),
       include_str!("../queries/yaml/aerial.scm"),
     )),
+    "py" => Some((
+      tree_sitter_python::LANGUAGE.into(),
+      include_str!("../queries/python/aerial.scm"),
+    )),
     _ => None,
   }
 }
