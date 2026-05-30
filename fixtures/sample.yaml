@@ -1,0 +1,60 @@
+project:
+  name: glean
+  version: 0.1.0
+  description: A multi-language code analysis tool
+  license: MIT
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  tls:
+    enabled: true
+    cert: /etc/glean/cert.pem
+    key: /etc/glean/key.pem
+
+database:
+  driver: sqlite
+  path: ./data/glean.db
+  pool:
+    min: 2
+    max: 10
+    timeout: 30s
+
+languages:
+  - name: rust
+    extensions: [".rs"]
+    query: queries/rust/aerial.scm
+  - name: javascript
+    extensions: [".js", ".mjs", ".jsx"]
+    query: queries/javascript/aerial.scm
+  - name: typescript
+    extensions: [".ts", ".mts"]
+    query: queries/typescript/aerial.scm
+
+jobs:
+  - name: index-workspace
+    schedule: "@hourly"
+    steps:
+      - name: scan files
+        run: glean scan --workspace .
+      - name: build index
+        run: glean index --output ./data
+      - name: notify
+        run: glean notify --channel slack
+
+  - name: cleanup
+    schedule: "@daily"
+    steps:
+      - name: prune old entries
+        run: glean prune --older-than 30d
+
+logging:
+  level: info
+  format: json
+  sinks:
+    stdout:
+      enabled: true
+    file:
+      enabled: true
+      path: ./logs/glean.log
+      rotate: daily

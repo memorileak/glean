@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A sample HTML fixture for tree-sitter testing" />
+    <title>Sample Page</title>
+    <link rel="stylesheet" href="sample.css" />
+  </head>
+  <body>
+    <header class="site-header" role="banner">
+      <nav class="navbar" aria-label="Main navigation">
+        <a class="navbar-brand" href="/">Glean</a>
+        <ul class="nav-list">
+          <li class="nav-item"><a href="/about">About</a></li>
+          <li class="nav-item"><a href="/docs">Docs</a></li>
+          <li class="nav-item"><a href="/contact">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main class="container" id="main-content">
+      <section class="hero" aria-labelledby="hero-title">
+        <h1 id="hero-title">Welcome to Glean</h1>
+        <p class="lead">A multi-language code analysis tool powered by Tree-sitter.</p>
+        <div class="cta-group">
+          <a href="/get-started" class="btn btn-primary">Get Started</a>
+          <a href="/docs" class="btn btn-secondary">Read the Docs</a>
+        </div>
+      </section>
+
+      <section class="features" aria-labelledby="features-title">
+        <h2 id="features-title">Features</h2>
+        <ul class="feature-list">
+          <li>
+            <article class="feature-card">
+              <h3>Multi-language</h3>
+              <p>Supports Rust, JavaScript, TypeScript, and more.</p>
+            </article>
+          </li>
+          <li>
+            <article class="feature-card">
+              <h3>Fast parsing</h3>
+              <p>Incremental parsing for real-time analysis.</p>
+            </article>
+          </li>
+        </ul>
+      </section>
+
+      <form class="search-form" action="/search" method="get" role="search">
+        <label for="search-input">Search symbols</label>
+        <input
+          id="search-input"
+          type="search"
+          name="q"
+          placeholder="Function, class, module…"
+          autocomplete="off"
+          aria-label="Search"
+        />
+        <button type="submit">Search</button>
+      </form>
+
+      <table class="data-table" aria-label="Language support">
+        <caption>Supported languages</caption>
+        <thead>
+          <tr>
+            <th scope="col">Language</th>
+            <th scope="col">Extension</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Rust</td>
+            <td><code>.rs</code></td>
+            <td>Stable</td>
+          </tr>
+          <tr>
+            <td>JavaScript</td>
+            <td><code>.js</code></td>
+            <td>Stable</td>
+          </tr>
+        </tbody>
+      </table>
+    </main>
+
+    <footer class="site-footer">
+      <p>&copy; 2025 Glean. MIT License.</p>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,59 @@
+{
+  "project": {
+    "name": "glean",
+    "version": "0.1.0",
+    "description": "A multi-language code analysis tool",
+    "license": "MIT"
+  },
+  "languages": {
+    "rust": {
+      "extensions": [".rs"],
+      "query": "queries/rust/aerial.scm",
+      "parser": "tree-sitter-rust"
+    },
+    "javascript": {
+      "extensions": [".js", ".mjs", ".cjs", ".jsx"],
+      "query": "queries/javascript/aerial.scm",
+      "parser": "tree-sitter-javascript"
+    },
+    "typescript": {
+      "extensions": [".ts", ".mts", ".cts"],
+      "query": "queries/typescript/aerial.scm",
+      "parser": "tree-sitter-typescript"
+    },
+    "tsx": {
+      "extensions": [".tsx"],
+      "query": "queries/tsx/aerial.scm",
+      "parser": "tree-sitter-typescript"
+    },
+    "html": {
+      "extensions": [".html", ".htm"],
+      "query": "queries/html/aerial.scm",
+      "parser": "tree-sitter-html"
+    },
+    "css": {
+      "extensions": [".css", ".scss", ".less"],
+      "query": "queries/css/aerial.scm",
+      "parser": "tree-sitter-css"
+    },
+    "json": {
+      "extensions": [".json"],
+      "query": "queries/json/aerial.scm",
+      "parser": "tree-sitter-json"
+    },
+    "yaml": {
+      "extensions": [".yaml", ".yml"],
+      "query": "queries/yaml/aerial.scm",
+      "parser": "tree-sitter-yaml"
+    }
+  },
+  "output": {
+    "format": "text",
+    "colors": true,
+    "truncate": 60
+  },
+  "dev": {
+    "fixtures": "fixtures/",
+    "queries": "queries/"
+  }
+}
