@@ -1,0 +1,52 @@
+<app-root>
+  <header class="app-header">
+    <h1>{{ title }}</h1>
+    <nav>
+      <a routerLink="/home" routerLinkActive="active">Home</a>
+      <a routerLink="/about" routerLinkActive="active">About</a>
+    </nav>
+  </header>
+
+  <main>
+    <app-user-list
+      [users]="users$ | async"
+      [loading]="isLoading"
+      (userSelected)="onUserSelected($event)"
+    ></app-user-list>
+
+    <section *ngIf="selectedUser">
+      <h2>{{ selectedUser.name }}</h2>
+      <p>Email: {{ selectedUser.email }}</p>
+      <button
+        class="btn btn-danger"
+        [disabled]="isDeleting"
+        (click)="deleteUser(selectedUser.id)"
+      >
+        Delete
+      </button>
+    </section>
+
+    <div *ngFor="let item of items; trackBy: trackById" class="item-card">
+      <span [class.active]="item.active">{{ item.label }}</span>
+      <input
+        type="text"
+        [(ngModel)]="item.value"
+        [placeholder]="item.hint"
+      />
+    </div>
+
+    <ng-container *ngIf="isAdmin; else guestBlock">
+      <app-admin-panel [config]="adminConfig"></app-admin-panel>
+    </ng-container>
+
+    <ng-template #guestBlock>
+      <p>You do not have admin access.</p>
+    </ng-template>
+
+    <form [formGroup]="profileForm" (ngSubmit)="onSubmit()">
+      <input formControlName="username" type="text" placeholder="Username" />
+      <input formControlName="email" type="email" placeholder="Email" />
+      <button type="submit" [disabled]="profileForm.invalid">Save</button>
+    </form>
+  </main>
+</app-root>
