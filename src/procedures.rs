@@ -1,5 +1,16 @@
-use anyhow::Result;
+mod add_repo;
+mod remove_repo;
+mod repo_stats;
+
+use std::result::Result as StdResult;
+
+use anyhow::Result as AnyhowResult;
 use jsonrpsee::RpcModule;
+use jsonrpsee::types::ErrorObjectOwned;
+
+use add_repo::{AddRepoParams, handle_add_repo};
+use remove_repo::{RemoveRepoParams, handle_remove_repo};
+use repo_stats::{RepoStats, handle_repo_stats};
 
 const REPO_STATS: &str = "repo_stats";
 const ADD_REPO: &str = "add_repo";
@@ -12,12 +23,21 @@ const GET_MATCHES_CONTENT: &str = "get_matches_content";
 const GET_UI_CONFIG: &str = "get_ui_config";
 const SET_UI_CONFIG: &str = "set_ui_config";
 
-pub fn build_rpc_module() -> Result<RpcModule<()>> {
+pub fn build_rpc_module() -> AnyhowResult<RpcModule<()>> {
   let mut module = RpcModule::new(());
 
-  module.register_method(REPO_STATS, |_, _, _| dummy_response(REPO_STATS))?;
-  module.register_method(ADD_REPO, |_, _, _| dummy_response(ADD_REPO))?;
-  module.register_method(REMOVE_REPO, |_, _, _| dummy_response(REMOVE_REPO))?;
+  module
+    .register_method::<StdResult<Vec<RepoStats>, ErrorObjectOwned>, _>(REPO_STATS, |_, _, _| {
+      handle_repo_stats()
+    })?;
+  module.register_method::<StdResult<(), ErrorObjectOwned>, _>(ADD_REPO, |params, _, _| {
+    let repos: Vec<AddRepoParams> = params.parse()?;
+    handle_add_repo(repos)
+  })?;
+  module.register_method::<StdResult<(), ErrorObjectOwned>, _>(REMOVE_REPO, |params, _, _| {
+    let repos: Vec<RemoveRepoParams> = params.parse()?;
+    handle_remove_repo(repos)
+  })?;
   module.register_method(SEARCH_FILE, |_, _, _| dummy_response(SEARCH_FILE))?;
   module.register_method(SEARCH_PATTERN, |_, _, _| dummy_response(SEARCH_PATTERN))?;
   module.register_method(GET_FILE_OUTLINE, |_, _, _| dummy_response(GET_FILE_OUTLINE))?;
@@ -33,4 +53,12 @@ pub fn build_rpc_module() -> Result<RpcModule<()>> {
 
 fn dummy_response(method: &str) -> String {
   format!("{method}: dummy response")
+}
+
+fn invalid_params(err: impl std::fmt::Display) -> ErrorObjectOwned {
+  ErrorObjectOwned::owned(-32602, err.to_string(), None::<()>)
+}
+
+fn internal_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
+  ErrorObjectOwned::owned(-32603, err.to_string(), None::<()>)
 }

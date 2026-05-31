@@ -15,11 +15,10 @@ impl FileScanner {
     let mut files: Vec<PathBuf> = Vec::new();
 
     for result in WalkBuilder::new(root_dir.as_path()).hidden(false).build() {
-      if let Ok(entry) = result {
-        let path = entry.path();
-        if path.is_file() {
-          files.push(path.clean());
-        }
+      let entry = result?;
+      let path = entry.path();
+      if path.is_file() {
+        files.push(path.clean());
       }
     }
 

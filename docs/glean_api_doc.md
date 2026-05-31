@@ -84,6 +84,7 @@ type Position = [line: number, col: number];
 ```typescript
 interface RepoStats {
   id: string;
+  sequence: number;
   path: string; // absolute path on disk
   file_count: number;
   status: "ok" | "error";

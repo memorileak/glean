@@ -1,4 +1,7 @@
+use std::collections::HashSet;
 use std::error::Error;
+use std::fs;
+use std::io;
 use std::path::PathBuf;
 
 use redb::{Database, ReadableDatabase, ReadableTable, TypeName, Value};
@@ -49,15 +52,15 @@ impl Value for RepositoryVal {
 
 #[derive(Debug)]
 pub struct RepositoryRec {
-  id: String,
-  sequence: u32,
-  path: PathBuf,
+  pub id: String,
+  pub sequence: u32,
+  pub path: PathBuf,
 }
 
 #[derive(Debug)]
 pub struct RepositoryNew {
-  id: String,
-  path: PathBuf,
+  pub id: String,
+  pub path: PathBuf,
 }
 
 pub struct RepositoryRepo {
@@ -73,7 +76,11 @@ impl RepositoryRepo {
     if self.db.is_some() {
       return Ok(self.db.as_ref().unwrap());
     }
-    let database = Database::create(PathBuf::from(DB_PATH).as_path())?;
+    let db_path = PathBuf::from(DB_PATH);
+    if let Some(parent) = db_path.parent() {
+      fs::create_dir_all(parent)?;
+    }
+    let database = Database::create(db_path.as_path())?;
     self.db = Some(database);
     Ok(self.db.as_ref().unwrap())
   }
@@ -109,6 +116,46 @@ impl RepositoryRepo {
     {
       let mut tbl_seq = rw_txn.open_table(TBL_REPOSITORY_SEQ)?;
       let mut tbl_repos = rw_txn.open_table(TBL_REPOSITORIES)?;
+      let mut request_ids = HashSet::new();
+      let mut duplicated_in_request: Vec<String> = Vec::new();
+
+      for rp in new_repos {
+        if !request_ids.insert(rp.id.as_str()) {
+          duplicated_in_request.push(rp.id.clone());
+        }
+      }
+
+      if !duplicated_in_request.is_empty() {
+        duplicated_in_request.sort_unstable();
+        duplicated_in_request.dedup();
+        return Err(
+          io::Error::other(format!(
+            "duplicate repository id(s) in request: {}",
+            duplicated_in_request.join(", ")
+          ))
+          .into(),
+        );
+      }
+
+      let mut existing_ids: Vec<String> = Vec::new();
+
+      for rp in new_repos {
+        if tbl_repos.get(&rp.id)?.is_some() {
+          existing_ids.push(rp.id.clone());
+        }
+      }
+
+      if !existing_ids.is_empty() {
+        existing_ids.sort_unstable();
+        existing_ids.dedup();
+        return Err(
+          io::Error::other(format!(
+            "repository id(s) already exist: {}",
+            existing_ids.join(", ")
+          ))
+          .into(),
+        );
+      }
 
       let mut seq: u32 = if let Some(seq_guard) = tbl_seq.get(&0)? {
         seq_guard.value()
