@@ -19,7 +19,7 @@
 
 - Registers a new repository with Glean, making it available for search and exploration.
 - Requires a unique `id` and the absolute path to the repository on disk.
-- The `id` must be a UTF-8 string of at most 64 characters (256 bytes). It serves as the stable identifier for the repository across all API calls (e.g. `mozilla-central` or `rust-lang/rust`).
+- The `id` must be a UTF-8 string. It serves as the stable identifier for the repository across all API calls (e.g. `mozilla-central` or `rust-lang/rust`).
 
 `remove_repo`
 
