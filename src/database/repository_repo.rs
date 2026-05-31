@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::error::Error;
-use std::fs;
 use std::io;
 use std::path::PathBuf;
 
@@ -77,9 +76,6 @@ impl RepositoryRepo {
       return Ok(self.db.as_ref().unwrap());
     }
     let db_path = PathBuf::from(DB_PATH);
-    if let Some(parent) = db_path.parent() {
-      fs::create_dir_all(parent)?;
-    }
     let database = Database::create(db_path.as_path())?;
     self.db = Some(database);
     Ok(self.db.as_ref().unwrap())
