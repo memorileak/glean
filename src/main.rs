@@ -1,7 +1,7 @@
-mod constants;
+mod constant;
 mod database;
 mod file_scanner;
-mod procedures;
+mod procedure;
 
 use anyhow::{Result, anyhow};
 use jsonrpsee::server::ServerBuilder;
@@ -18,7 +18,7 @@ fn main() -> Result<()> {
 
   rt.block_on(async {
     let server = ServerBuilder::default().build("127.0.0.1:25194").await?;
-    let handle = server.start(procedures::build_rpc_module()?);
+    let handle = server.start(procedure::build_rpc_module()?);
     println!("Glean JSON-RPC server listening on 127.0.0.1:25194");
     handle.stopped().await;
     Ok::<(), anyhow::Error>(())
