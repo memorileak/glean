@@ -1,6 +1,7 @@
 mod add_repo;
 mod remove_repo;
 mod repo_stats;
+mod search_file;
 
 use std::result::Result as StdResult;
 
@@ -11,6 +12,7 @@ use jsonrpsee::types::ErrorObjectOwned;
 use add_repo::{AddRepoParams, handle_add_repo};
 use remove_repo::{RemoveRepoParams, handle_remove_repo};
 use repo_stats::{RepoStats, handle_repo_stats};
+use search_file::{FileSearchResult, SearchFileParams, handle_search_file};
 
 const REPO_STATS: &str = "repo_stats";
 const ADD_REPO: &str = "add_repo";
@@ -30,15 +32,25 @@ pub fn build_rpc_module() -> AnyhowResult<RpcModule<()>> {
     .register_method::<StdResult<Vec<RepoStats>, ErrorObjectOwned>, _>(REPO_STATS, |_, _, _| {
       handle_repo_stats()
     })?;
+
   module.register_method::<StdResult<(), ErrorObjectOwned>, _>(ADD_REPO, |params, _, _| {
     let repos: Vec<AddRepoParams> = params.parse()?;
     handle_add_repo(repos)
   })?;
+
   module.register_method::<StdResult<(), ErrorObjectOwned>, _>(REMOVE_REPO, |params, _, _| {
     let repos: Vec<RemoveRepoParams> = params.parse()?;
     handle_remove_repo(repos)
   })?;
-  module.register_method(SEARCH_FILE, |_, _, _| dummy_response(SEARCH_FILE))?;
+
+  module.register_method::<StdResult<Vec<FileSearchResult>, ErrorObjectOwned>, _>(
+    SEARCH_FILE,
+    |params, _, _| {
+      let params: SearchFileParams = params.parse()?;
+      handle_search_file(params)
+    },
+  )?;
+
   module.register_method(SEARCH_PATTERN, |_, _, _| dummy_response(SEARCH_PATTERN))?;
   module.register_method(GET_FILE_OUTLINE, |_, _, _| dummy_response(GET_FILE_OUTLINE))?;
   module.register_method(GET_FILE_CONTENT, |_, _, _| dummy_response(GET_FILE_CONTENT))?;
