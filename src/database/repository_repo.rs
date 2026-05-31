@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::path::PathBuf;
 
-use redb::{Database, ReadableTable, TypeName, Value};
+use redb::{Database, ReadableDatabase, ReadableTable, TypeName, Value};
 
 use super::tables::{DB_PATH, TBL_REPOSITORIES, TBL_REPOSITORY_SEQ};
 
@@ -78,6 +78,30 @@ impl RepositoryRepo {
     Ok(self.db.as_ref().unwrap())
   }
 
+  pub fn list_repositories(&mut self) -> Result<Vec<RepositoryRec>, Box<dyn Error>> {
+    let db = self.get_db()?;
+    let r_txn = db.begin_read()?;
+    let mut repositories: Vec<RepositoryRec> = Vec::new();
+
+    {
+      let tbl_repos = r_txn.open_table(TBL_REPOSITORIES)?;
+
+      for result in tbl_repos.iter()? {
+        let (id_guard, val_guard) = result?;
+        let RepositoryVal { sequence, path } = val_guard.value();
+        repositories.push(RepositoryRec {
+          id: id_guard.value().to_string(),
+          sequence: sequence,
+          path: path,
+        });
+      }
+    }
+
+    repositories.sort_unstable_by_key(|rec| rec.sequence);
+
+    Ok(repositories)
+  }
+
   pub fn add_repositories(&mut self, new_repos: &[RepositoryNew]) -> Result<(), Box<dyn Error>> {
     let db = self.get_db()?;
     let rw_txn = db.begin_write()?;
@@ -104,6 +128,23 @@ impl RepositoryRepo {
       }
 
       tbl_seq.insert(&0, &seq)?;
+    }
+
+    rw_txn.commit()?;
+
+    Ok(())
+  }
+
+  pub fn remove_repositories(&mut self, ids: &[String]) -> Result<(), Box<dyn Error>> {
+    let db = self.get_db()?;
+    let rw_txn = db.begin_write()?;
+
+    {
+      let mut tbl_repos = rw_txn.open_table(TBL_REPOSITORIES)?;
+
+      for id in ids {
+        tbl_repos.remove(id)?;
+      }
     }
 
     rw_txn.commit()?;
