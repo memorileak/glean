@@ -2,6 +2,7 @@ mod add_repo;
 mod remove_repo;
 mod repo_stats;
 mod search_file;
+mod search_pattern;
 
 use std::result::Result as StdResult;
 
@@ -13,6 +14,7 @@ use add_repo::{AddRepoParams, handle_add_repo};
 use remove_repo::{RemoveRepoParams, handle_remove_repo};
 use repo_stats::{RepoStats, handle_repo_stats};
 use search_file::{FileSearchResult, SearchFileParams, handle_search_file};
+use search_pattern::{SearchPatternParams, SearchPatternResult, handle_search_pattern};
 
 const REPO_STATS: &str = "repo_stats";
 const ADD_REPO: &str = "add_repo";
@@ -51,7 +53,13 @@ pub fn build_rpc_module() -> AnyhowResult<RpcModule<()>> {
     },
   )?;
 
-  module.register_method(SEARCH_PATTERN, |_, _, _| dummy_response(SEARCH_PATTERN))?;
+  module.register_method::<StdResult<Vec<SearchPatternResult>, ErrorObjectOwned>, _>(
+    SEARCH_PATTERN,
+    |params, _, _| {
+      let params: SearchPatternParams = params.parse()?;
+      handle_search_pattern(params)
+    },
+  )?;
   module.register_method(GET_FILE_OUTLINE, |_, _, _| dummy_response(GET_FILE_OUTLINE))?;
   module.register_method(GET_FILE_CONTENT, |_, _, _| dummy_response(GET_FILE_CONTENT))?;
   module.register_method(GET_MATCHES_CONTENT, |_, _, _| {

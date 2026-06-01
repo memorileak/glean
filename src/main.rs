@@ -1,3 +1,4 @@
+mod astgrep;
 mod constant;
 mod database;
 mod file_scanner;
