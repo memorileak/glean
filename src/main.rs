@@ -3,6 +3,7 @@ mod constant;
 mod database;
 mod file_scanner;
 mod procedure;
+mod types;
 
 use anyhow::{Result, anyhow};
 use jsonrpsee::server::ServerBuilder;

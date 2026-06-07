@@ -1,1 +1,3 @@
-pub mod angular;
+mod angular;
+
+pub use angular::Angular;

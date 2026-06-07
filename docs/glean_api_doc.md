@@ -75,7 +75,7 @@
 ### Primitives
 
 ```typescript
-// 1-based line and column position within a file
+// 0-based line and column position within a file
 type Position = [line: number, col: number];
 ```
 

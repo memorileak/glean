@@ -56,6 +56,7 @@ pub fn handle_search_file(
     return Ok(Vec::new());
   }
 
+  let threads = threads.max(1);
   let chunk_size = (all_files.len() + threads - 1) / threads;
   let query = Arc::new(query);
   let mut handles = Vec::new();

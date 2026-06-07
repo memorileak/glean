@@ -1,36 +1,21 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
-use ast_grep_core::Node;
-use ast_grep_core::matcher::Pattern;
-use ast_grep_core::tree_sitter::LanguageExt;
-use ast_grep_language::{Css, Html, JavaScript, Json, Python, Rust, Tsx, TypeScript, Yaml};
 use jsonrpsee::types::ErrorObjectOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::astgrep::morelangs::angular::Angular;
+use crate::astgrep::matching::{AST_LANGUAGES, AstLanguage};
 use crate::database::RepositoryRepo;
 use crate::file_scanner::FileScanner;
+use crate::types::Match;
 
 use super::{internal_error, invalid_params};
 
 #[derive(Deserialize)]
 pub struct SearchPatternParams {
   pub query: String,
-}
-
-#[derive(Clone, Serialize)]
-pub struct Position(
-  usize, // line
-  usize, // column
-);
-
-#[derive(Clone, Serialize)]
-pub struct Match {
-  start: Position,
-  end: Position,
 }
 
 #[derive(Clone, Serialize)]
@@ -41,24 +26,11 @@ pub struct SearchPatternResult {
 }
 
 #[derive(Clone)]
-struct ScannedFile {
+struct ScannedFile<'a> {
   repo_id: String,
   file_path: String,
   abs_path: PathBuf,
-}
-
-#[derive(Clone, Copy)]
-enum PatternLanguage {
-  Rust,
-  JavaScript,
-  TypeScript,
-  Tsx,
-  Html,
-  Css,
-  Json,
-  Yaml,
-  Python,
-  Angular,
+  ast_language: &'a dyn AstLanguage,
 }
 
 pub fn handle_search_pattern(
@@ -81,15 +53,16 @@ pub fn handle_search_pattern(
     match file_scanner.scan_files(&repo.path) {
       Ok(files) => {
         for abs_path in files {
-          if detect_language(&abs_path).is_none() {
+          let Some(ast_language) = AST_LANGUAGES.detect(&abs_path) else {
             continue;
-          }
+          };
 
           if let Ok(rel_path) = abs_path.strip_prefix(&repo.path) {
             all_files.push(ScannedFile {
               repo_id: repo.id.clone(),
               file_path: rel_path.to_string_lossy().into_owned(),
               abs_path,
+              ast_language,
             });
           }
         }
@@ -103,28 +76,22 @@ pub fn handle_search_pattern(
   }
 
   let threads = threads.max(1);
+  let chunk_size = (all_files.len() + threads - 1) / threads;
   let query = Arc::new(query);
   let mut handles = Vec::with_capacity(threads);
 
-  for partition_index in 0..threads {
-    let start = partition_index * all_files.len() / threads;
-    let end = (partition_index + 1) * all_files.len() / threads;
-    let partition = all_files[start..end].to_vec();
+  for chunk in all_files.chunks(chunk_size) {
+    let partition = chunk.to_vec();
     let query = Arc::clone(&query);
 
     handles.push(thread::spawn(move || {
       let mut results = Vec::new();
-
       for file in partition {
         let Ok(source) = fs::read_to_string(&file.abs_path) else {
           continue;
         };
 
-        let Some(language) = detect_language(&file.abs_path) else {
-          continue;
-        };
-
-        let matches = search_matches(language, &source, &query);
+        let matches = file.ast_language.find_matches(&source, &query);
         if matches.is_empty() {
           continue;
         }
@@ -155,68 +122,4 @@ pub fn handle_search_pattern(
   });
 
   Ok(all_results)
-}
-
-fn detect_language(path: &Path) -> Option<PatternLanguage> {
-  let file_name = path.file_name()?.to_str()?;
-  if file_name.ends_with(".angular.html") || file_name.ends_with(".component.html") {
-    return Some(PatternLanguage::Angular);
-  }
-
-  match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
-    "rs" => Some(PatternLanguage::Rust),
-    "js" | "jsx" => Some(PatternLanguage::JavaScript),
-    "ts" => Some(PatternLanguage::TypeScript),
-    "tsx" => Some(PatternLanguage::Tsx),
-    "html" => Some(PatternLanguage::Html),
-    "css" => Some(PatternLanguage::Css),
-    "json" => Some(PatternLanguage::Json),
-    "yaml" | "yml" => Some(PatternLanguage::Yaml),
-    "py" => Some(PatternLanguage::Python),
-    _ => None,
-  }
-}
-
-fn search_matches(language: PatternLanguage, source: &str, query: &str) -> Vec<Match> {
-  match language {
-    PatternLanguage::Rust => collect_matches(Rust, source, query),
-    PatternLanguage::JavaScript => collect_matches(JavaScript, source, query),
-    PatternLanguage::TypeScript => collect_matches(TypeScript, source, query),
-    PatternLanguage::Tsx => collect_matches(Tsx, source, query),
-    PatternLanguage::Html => collect_matches(Html, source, query),
-    PatternLanguage::Css => collect_matches(Css, source, query),
-    PatternLanguage::Json => collect_matches(Json, source, query),
-    PatternLanguage::Yaml => collect_matches(Yaml, source, query),
-    PatternLanguage::Python => collect_matches(Python, source, query),
-    PatternLanguage::Angular => collect_matches(Angular, source, query),
-  }
-}
-
-fn collect_matches<L>(lang: L, source: &str, query: &str) -> Vec<Match>
-where
-  L: LanguageExt + Clone,
-{
-  let Ok(pattern) = Pattern::try_new(query, lang.clone()) else {
-    return Vec::new();
-  };
-
-  let root = lang.ast_grep(source);
-  root
-    .root()
-    .find_all(pattern)
-    .map(|matched| to_match(matched.into()))
-    .collect()
-}
-
-fn to_match<D>(node: Node<'_, D>) -> Match
-where
-  D: ast_grep_core::Doc,
-{
-  let start = node.start_pos();
-  let end = node.end_pos();
-
-  Match {
-    start: Position(start.line() + 1, start.column(&node) + 1),
-    end: Position(end.line() + 1, end.column(&node) + 1),
-  }
 }
