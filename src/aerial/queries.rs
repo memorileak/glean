@@ -1,0 +1,9 @@
+pub const ARL_QUERY_RUST: &'static str = include_str!("./queries/rust/aerial.scm");
+pub const ARL_QUERY_JAVASCRIPT: &'static str = include_str!("./queries/javascript/aerial.scm");
+pub const ARL_QUERY_TYPESCRIPT: &'static str = include_str!("./queries/typescript/aerial.scm");
+pub const ARL_QUERY_TSX: &'static str = include_str!("./queries/tsx/aerial.scm");
+pub const ARL_QUERY_PYTHON: &'static str = include_str!("./queries/python/aerial.scm");
+pub const ARL_QUERY_HTML: &'static str = include_str!("./queries/html/aerial.scm");
+pub const ARL_QUERY_CSS: &'static str = include_str!("./queries/css/aerial.scm");
+pub const ARL_QUERY_JSON: &'static str = include_str!("./queries/json/aerial.scm");
+pub const ARL_QUERY_YAML: &'static str = include_str!("./queries/yaml/aerial.scm");
