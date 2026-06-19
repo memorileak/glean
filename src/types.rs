@@ -11,3 +11,12 @@ pub struct Match {
   pub start: Position,
   pub end: Position,
 }
+
+#[derive(Clone, Serialize)]
+pub struct Symbol {
+  pub name: String,
+  pub kind: String,
+  pub start: Position,
+  pub end: Position,
+  pub children: Option<Vec<Symbol>>,
+}

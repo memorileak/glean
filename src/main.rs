@@ -1,3 +1,4 @@
+mod aerial;
 mod astgrep;
 mod constant;
 mod database;

@@ -10,13 +10,13 @@ mod ast_typescript;
 mod ast_yaml;
 mod registry;
 
+pub use registry::AST_LANGUAGES;
+
 use ast_grep_core::matcher::Pattern;
 use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
 use ast_grep_core::{Doc, Node};
 
 use crate::types::{Match, Position};
-
-pub use registry::AST_LANGUAGES;
 
 /// Trait for languages that support AST-based pattern matching
 pub trait AstLanguage: Send + Sync {
