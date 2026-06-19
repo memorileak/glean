@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Position(
   pub usize, // line
   pub usize, // column
