@@ -10,9 +10,9 @@ mod ast_typescript;
 mod ast_yaml;
 mod registry;
 
-use ast_grep_core::Node;
 use ast_grep_core::matcher::Pattern;
-use ast_grep_core::tree_sitter::LanguageExt;
+use ast_grep_core::tree_sitter::{LanguageExt, StrDoc};
+use ast_grep_core::{Doc, Node};
 
 use crate::types::{Match, Position};
 
@@ -38,6 +38,20 @@ pub trait AstLanguage: Send + Sync {
   fn find_matches(&self, source: &str, query: &str) -> Vec<Match>;
 }
 
+impl<'tree, D> From<Node<'tree, D>> for Match
+where
+  D: Doc,
+{
+  fn from(node: Node<'_, D>) -> Self {
+    let start = node.start_pos();
+    let end = node.end_pos();
+    Match {
+      start: Position(start.line(), start.column(&node)),
+      end: Position(end.line(), end.column(&node)),
+    }
+  }
+}
+
 pub fn collect_matches<L>(lang: L, source: &str, query: &str) -> Vec<Match>
 where
   L: LanguageExt + Clone,
@@ -50,19 +64,6 @@ where
   root
     .root()
     .find_all(pattern)
-    .map(|matched| to_match(matched.into()))
+    .map(|matched| Match::from(Into::<Node<'_, StrDoc<L>>>::into(matched)))
     .collect()
-}
-
-fn to_match<D>(node: Node<'_, D>) -> Match
-where
-  D: ast_grep_core::Doc,
-{
-  let start = node.start_pos();
-  let end = node.end_pos();
-
-  Match {
-    start: Position(start.line(), start.column(&node)),
-    end: Position(end.line(), end.column(&node)),
-  }
 }
