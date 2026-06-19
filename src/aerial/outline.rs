@@ -193,6 +193,18 @@ impl Outliner {
         .then_with(|| b.end_byte.cmp(&a.end_byte))
     });
 
+    // TODO: Improve this algorithm of finding parents using stack.
+    // 1. Sort the nodes: Sort all intervals primarily by their start value in ascending order.
+    //   If two nodes have the exact same start value, sort them by their end value in descending order (larger intervals must come first to be parents)
+    //   (Already done above)
+    //
+    // 2. Initialize a Stack: Create an empty stack to keep track of the current path from the root down to the active node.
+    //
+    // 3. Iterate and Match: Loop through each sorted node B:
+    //   Pop non-parents: While the stack is not empty and the node at the top of the stack A does not contain B, pop A off the stack.
+    //   Encounter an A contains B: Assign Parent: If the stack is not empty, the current top of the stack is the immediate parent of B.
+    //   Push to Stack: Push B onto the stack.
+
     // Find parent for each symbol (the innermost containing symbol)
     let mut parent_indices: Vec<Option<usize>> = vec![None; raw_symbols.len()];
 
@@ -290,7 +302,10 @@ impl Shape for Point {
     let children = impl_symbol.children.as_ref().unwrap();
     assert_eq!(children.len(), 1, "impl should have 1 method");
     assert_eq!(children[0].name, "area", "Method should be named 'area'");
-    assert_eq!(children[0].kind, "Function", "Child should be Function kind");
+    assert_eq!(
+      children[0].kind, "Function",
+      "Child should be Function kind"
+    );
 
     // Verify struct and trait are at root level
     let root_names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
