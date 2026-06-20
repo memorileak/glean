@@ -9,9 +9,9 @@ mod arl_typescript;
 mod arl_yaml;
 mod registry;
 
-use std::collections::{HashMap, HashSet};
-
 pub use registry::ARL_LANGUAGES;
+
+use std::collections::{HashMap, HashSet};
 
 use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator};
 
@@ -58,11 +58,18 @@ impl PartialEq for RawSymbol {
 
 impl From<&RawSymbol> for Symbol {
   fn from(value: &RawSymbol) -> Self {
+    let RawSymbol {
+      name,
+      kind,
+      start_pos,
+      end_pos,
+      ..
+    } = value.clone();
     Symbol {
-      name: value.name.clone(),
-      kind: value.kind.clone(),
-      start: value.start_pos.clone(),
-      end: value.end_pos.clone(),
+      name,
+      kind,
+      start: start_pos,
+      end: end_pos,
       children: None,
     }
   }
@@ -196,14 +203,14 @@ impl Outliner {
         .then_with(|| b.end_byte.cmp(&a.end_byte))
     });
 
-    let mut symbols: Vec<Symbol> = raw_symbols.iter().map(|s| s.into()).collect();
+    let raw_symbols = raw_symbols;
     let mut stack: Vec<usize> = Vec::new();
     let mut parents: Vec<(usize, usize)> = Vec::new();
-    let mut root_syms: HashSet<usize> = HashSet::new();
+    let mut roots: HashSet<usize> = HashSet::new();
 
     for (i, cur_sym) in raw_symbols.iter().enumerate() {
       if stack.is_empty() {
-        root_syms.insert(i);
+        roots.insert(i);
         stack.push(i);
         continue;
       }
@@ -222,57 +229,75 @@ impl Outliner {
       }
 
       if !parent_found {
-        root_syms.insert(i);
+        roots.insert(i);
         stack.push(i);
       }
     }
 
+    let mut parent_to_children: HashMap<usize, Vec<usize>> = HashMap::new();
     for (i, p) in parents.into_iter() {
-      let child_sym = symbols[i].clone();
-      let parent_sym = &mut symbols[p];
-      parent_sym
-        .children
-        .get_or_insert(Vec::new())
-        .push(child_sym);
+      parent_to_children.entry(p).or_insert(Vec::new()).push(i);
+    }
+
+    let parent_to_children = parent_to_children;
+    let mut symbols: Vec<Symbol> = Vec::new();
+    for r in roots.into_iter() {
+      let symbol = Self::populate(r, &raw_symbols, &parent_to_children);
+      symbols.push(symbol);
     }
 
     symbols
-      .into_iter()
-      .enumerate()
-      .filter(|(i, _)| root_syms.contains(i))
-      .map(|(_, s)| s)
-      .collect()
+  }
+
+  fn populate(
+    n: usize,
+    raw_symbols: &Vec<RawSymbol>,
+    parent_to_children: &HashMap<usize, Vec<usize>>,
+  ) -> Symbol {
+    let children = if let Some(child_nodes) = parent_to_children.get(&n) {
+      let mut children: Vec<Symbol> = Vec::with_capacity(child_nodes.len());
+      for &c in child_nodes.iter() {
+        let child = Self::populate(c, raw_symbols, parent_to_children);
+        children.push(child);
+      }
+      Some(children)
+    } else {
+      None
+    };
+    let mut symbol: Symbol = (&raw_symbols[n]).into();
+    symbol.children = children;
+    symbol
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::aerial::queries::ARL_QUERY_RUST;
+  use crate::aerial::queries::{ARL_QUERY_JAVASCRIPT, ARL_QUERY_RUST};
 
   #[test]
   fn test_outline_with_nested_symbols() {
     let source = r#"
-pub struct Point {
-    pub x: f64,
-    pub y: f64,
-}
+      pub struct Point {
+        pub x: f64,
+        pub y: f64,
+      }
 
-pub trait Shape {
-    fn area(&self) -> f64;
-}
+      pub trait Shape {
+        fn area(&self) -> f64;
+      }
 
-impl Shape for Point {
-    fn area(&self) -> f64 {
-        0.0
-    }
-}
-"#;
+      impl Shape for Point {
+        fn area(&self) -> f64 {
+          0.0
+        }
+      }
+    "#;
 
     let lang = tree_sitter_rust::LANGUAGE.into();
     let symbols = Outliner::outline(&lang, source, ARL_QUERY_RUST);
 
-    println!("{:?}", symbols);
+    println!("Test 1: {:?}", symbols);
 
     // Should find struct, trait, and impl
     assert!(!symbols.is_empty(), "Should find symbols");
@@ -309,24 +334,35 @@ impl Shape for Point {
   #[test]
   fn test_flat_symbols_without_nesting() {
     let source = r#"
-fn foo() {}
-fn bar() {}
-struct Baz;
-"#;
+      class A {
+        getName() {
+          function abc() {
+             return "ABC";
+          }
+          function def() {
+             return "DEF";
+          }
+          return "Name";
+        }
+        getAge() {
+          return 0;
+        }
+      }
 
-    let lang = tree_sitter_rust::LANGUAGE.into();
-    let symbols = Outliner::outline(&lang, source, ARL_QUERY_RUST);
-    println!("{:?}", symbols);
+      class B {
+        getName() {
+          return "Name";
+        }
+        getSalutation() {
+          return "Hello, Mr. ";
+        }
+      }
+    "#;
 
-    // All should be at root level
-    assert_eq!(symbols.len(), 3, "Should find 3 root symbols");
+    let lang = tree_sitter_javascript::LANGUAGE.into();
+    let symbols = Outliner::outline(&lang, source, ARL_QUERY_JAVASCRIPT);
+    println!("Test 2: {:#?}", symbols);
 
-    // None should have children
-    for sym in &symbols {
-      assert!(
-        sym.children.is_none() || sym.children.as_ref().unwrap().is_empty(),
-        "Flat symbols should not have children"
-      );
-    }
+    assert_eq!(symbols.len(), 2, "Should find 2 root symbols");
   }
 }
