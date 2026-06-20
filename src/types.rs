@@ -6,13 +6,13 @@ pub struct Position(
   pub usize, // column
 );
 
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Match {
   pub start: Position,
   pub end: Position,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Symbol {
   pub name: String,
   pub kind: String,

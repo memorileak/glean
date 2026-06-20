@@ -9,6 +9,8 @@ mod arl_typescript;
 mod arl_yaml;
 mod registry;
 
+use std::collections::{HashMap, HashSet};
+
 pub use registry::ARL_LANGUAGES;
 
 use tree_sitter::{Language, Parser, Query, QueryCursor, StreamingIterator};
@@ -46,22 +48,23 @@ impl RawSymbol {
   fn contains(&self, other: &RawSymbol) -> bool {
     self.start_byte <= other.start_byte && other.end_byte <= self.end_byte && self != other
   }
-
-  /// Convert to Symbol with optional children
-  fn into_symbol(self, children: Option<Vec<Symbol>>) -> Symbol {
-    Symbol {
-      name: self.name,
-      kind: self.kind,
-      start: self.start_pos,
-      end: self.end_pos,
-      children,
-    }
-  }
 }
 
 impl PartialEq for RawSymbol {
   fn eq(&self, other: &Self) -> bool {
     self.start_byte == other.start_byte && self.end_byte == other.end_byte
+  }
+}
+
+impl From<&RawSymbol> for Symbol {
+  fn from(value: &RawSymbol) -> Self {
+    Symbol {
+      name: value.name.clone(),
+      kind: value.kind.clone(),
+      start: value.start_pos.clone(),
+      end: value.end_pos.clone(),
+      children: None,
+    }
   }
 }
 
@@ -89,7 +92,7 @@ impl Outliner {
     let capture_names = query.capture_names();
 
     // Collect all raw symbols with byte ranges
-    let mut raw_symbols = Vec::new();
+    let mut raw_symbols: Vec<RawSymbol> = Vec::new();
     let mut cursor = QueryCursor::new();
     let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
 
@@ -171,8 +174,8 @@ impl Outliner {
         kind,
         start_byte,
         end_byte,
-        start_pos: Position(start_pos.row + 1, start_pos.column + 1),
-        end_pos: Position(end_pos.row + 1, end_pos.column + 1),
+        start_pos: Position(start_pos.row, start_pos.column),
+        end_pos: Position(end_pos.row, end_pos.column),
       });
     }
 
@@ -193,64 +196,52 @@ impl Outliner {
         .then_with(|| b.end_byte.cmp(&a.end_byte))
     });
 
-    // TODO: Improve this algorithm of finding parents using stack.
-    // 1. Sort the nodes: Sort all intervals primarily by their start value in ascending order.
-    //   If two nodes have the exact same start value, sort them by their end value in descending order (larger intervals must come first to be parents)
-    //   (Already done above)
-    //
-    // 2. Initialize a Stack: Create an empty stack to keep track of the current path from the root down to the active node.
-    //
-    // 3. Iterate and Match: Loop through each sorted node B:
-    //   Pop non-parents: While the stack is not empty and the node at the top of the stack A does not contain B, pop A off the stack.
-    //   Encounter an A contains B: Assign Parent: If the stack is not empty, the current top of the stack is the immediate parent of B.
-    //   Push to Stack: Push B onto the stack.
+    let mut symbols: Vec<Symbol> = raw_symbols.iter().map(|s| s.into()).collect();
+    let mut stack: Vec<usize> = Vec::new();
+    let mut parents: Vec<(usize, usize)> = Vec::new();
+    let mut root_syms: HashSet<usize> = HashSet::new();
 
-    // Find parent for each symbol (the innermost containing symbol)
-    let mut parent_indices: Vec<Option<usize>> = vec![None; raw_symbols.len()];
+    for (i, cur_sym) in raw_symbols.iter().enumerate() {
+      if stack.is_empty() {
+        root_syms.insert(i);
+        stack.push(i);
+        continue;
+      }
 
-    for i in 0..raw_symbols.len() {
-      let mut best_parent: Option<usize> = None;
-      let mut smallest_range = usize::MAX;
-
-      for j in 0..raw_symbols.len() {
-        if i == j {
-          continue;
-        }
-        if raw_symbols[j].contains(&raw_symbols[i]) {
-          let range_size = raw_symbols[j].end_byte - raw_symbols[j].start_byte;
-          if range_size < smallest_range {
-            smallest_range = range_size;
-            best_parent = Some(j);
-          }
+      let mut parent_found = false;
+      while !parent_found && !stack.is_empty() {
+        let &top = stack.last().unwrap();
+        let top_sym = &raw_symbols[top];
+        if top_sym.contains(cur_sym) {
+          parent_found = true;
+          parents.push((i, top));
+          stack.push(i);
+        } else {
+          stack.pop();
         }
       }
 
-      parent_indices[i] = best_parent;
-    }
-
-    // Build the tree by grouping children under parents
-    let mut root_symbols = Vec::new();
-    let mut children_map: std::collections::HashMap<usize, Vec<Symbol>> =
-      std::collections::HashMap::new();
-
-    // Process in reverse to build from leaves up
-    for i in (0..raw_symbols.len()).rev() {
-      let children = children_map.remove(&i);
-      let symbol = raw_symbols[i].clone().into_symbol(children);
-
-      if let Some(parent_idx) = parent_indices[i] {
-        children_map
-          .entry(parent_idx)
-          .or_insert_with(Vec::new)
-          .push(symbol);
-      } else {
-        root_symbols.push(symbol);
+      if !parent_found {
+        root_syms.insert(i);
+        stack.push(i);
       }
     }
 
-    // Reverse root symbols to maintain original order
-    root_symbols.reverse();
-    root_symbols
+    for (i, p) in parents.into_iter() {
+      let child_sym = symbols[i].clone();
+      let parent_sym = &mut symbols[p];
+      parent_sym
+        .children
+        .get_or_insert(Vec::new())
+        .push(child_sym);
+    }
+
+    symbols
+      .into_iter()
+      .enumerate()
+      .filter(|(i, _)| root_syms.contains(i))
+      .map(|(_, s)| s)
+      .collect()
   }
 }
 
@@ -280,6 +271,8 @@ impl Shape for Point {
 
     let lang = tree_sitter_rust::LANGUAGE.into();
     let symbols = Outliner::outline(&lang, source, ARL_QUERY_RUST);
+
+    println!("{:?}", symbols);
 
     // Should find struct, trait, and impl
     assert!(!symbols.is_empty(), "Should find symbols");
@@ -323,6 +316,7 @@ struct Baz;
 
     let lang = tree_sitter_rust::LANGUAGE.into();
     let symbols = Outliner::outline(&lang, source, ARL_QUERY_RUST);
+    println!("{:?}", symbols);
 
     // All should be at root level
     assert_eq!(symbols.len(), 3, "Should find 3 root symbols");

@@ -10,7 +10,8 @@ use super::{ArlLanguage, Outliner};
 pub struct ArlTypescript;
 
 impl ArlTypescript {
-  const LANGUAGE: LazyLock<Language> = LazyLock::new(|| tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into());
+  const LANGUAGE: LazyLock<Language> =
+    LazyLock::new(|| tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into());
 }
 
 impl ArlLanguage for ArlTypescript {
